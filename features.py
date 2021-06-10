@@ -5,7 +5,6 @@ import ipaddress
 import tldextract
 import whois
 import datetime
-import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup as bs
 
 #Features:
@@ -35,15 +34,6 @@ from bs4 import BeautifulSoup as bs
 # 23 'web_traffic'
 # 24 'Page_Rank',
 # 25 'Statistical_report'
-def f17_Redirect(url):
-    response=requests.get(url)
-    if response == "":
-        return -1
-    if len(response.history) <= 1:
-        return -1
-    if len(response.history) <= 4:
-        return 0
-    return 1
 
 def f1_having_IP_Address(domain):
     #1. checking hex digits
@@ -144,18 +134,12 @@ def f9_Domain_registration_length(domain):
             return -1
 
 def f10_Favicon(domain):
-    # icon = soup.find_all("link", rel="shortcut icon")
-    # href = icon.get('href')
-    # dom = urlparse(href).netloc
-    # if(dom!="favicon.ico"):
-    #     return -1
-    # return 1
     href = []
     for icon in soup.find_all("link", rel="shortcut icon"):
         href.append(icon.get('href'))
 
     for h in href:
-        if(href=="favicon.ico"):
+        if(h=="favicon.ico"):
             return 1
         else:
             dom = urlparse(h).netloc
@@ -179,10 +163,9 @@ def checkperc(oth, cnt):
 def f12_Request_URL(domain):
     percimg = f121_findsrcdomain('img', domain)
     percvid = f121_findsrcdomain('video', domain)
-    percdoc = f121_findsrcdomain('', domain)
     percsound = f121_findsrcdomain('embed', domain)
 
-    perc = percimg + percvid + percdoc + percsound
+    perc = percimg + percvid + percsound
 
     if perc>=21:
         if perc>=61:
@@ -205,8 +188,7 @@ def f121_findsrcdomain(tag, domain):
         dom = urlparse(src).netloc
         if (dom!=domain and dom!='' and dom!=b''):
             invalidhref+=1 
-        count+=1
-
+    count=len(srcs)
     perc = checkperc(invalidhref, count)
     return (perc)
 
@@ -227,8 +209,7 @@ def f13_URl_of_Anchor(domain):
             dom = urlparse(h).netloc
             if (dom!=domain and dom!='' and dom!=b''):
                 invalidhref+=1 
-        count+=1
-
+    count=len(href)
     perc = checkperc(invalidhref, count)
 
     if perc>=31:
@@ -239,11 +220,9 @@ def f13_URl_of_Anchor(domain):
     return 1
 
 def f14_Links_in_tags(domain):
-
     othlink, cntlink = f141_find_domain('link', domain)
     othscript, cntscript = f141_find_domain('script', domain)
     othmeta, cntmeta = f141_find_domain('meta', domain)
-
     perclink = checkperc(othlink, cntlink)
     percscript = checkperc(othscript, cntscript)
     percmeta = checkperc(othmeta, cntmeta)
@@ -281,6 +260,14 @@ def f16_Submitting_to_email():
     if email == -1:
         return 1
     return -1
+
+def f17_Redirect(url):
+    response=requests.get(url)
+    if len(response.history) <=1:
+        return 1
+    if len(response.history) >=4:
+        return -1
+    return 0
 
 def f18_on_mouseover():
     if str(soup).lower().find('onmouseover="window.status')!=-1:
@@ -375,10 +362,7 @@ def extract(url):
         flag = 0
     except:
         print("Website doesn't exist!")
-        for i in range(22):
-            features[i]=-1
-        flag = 1
-
+        return "Website doesn't exist!"
 
     if flag==0:
         features[16]=f17_Redirect(url)
@@ -404,17 +388,35 @@ def extract(url):
         features[17] = f18_on_mouseover()
         features[18] = f19_RightClick()
         features[19] = f20_Iframe(result)
-        features[21] = f22_DNSRecord(url)
-        features[7] = 1
+        features[7]=features[21] = f22_DNSRecord(url)
         features[9] = f10_Favicon(domain)
 
     count = 0
     global features_model
+    global warnings
+    warnings = []
+
     for i in range(25):
         if features[i]==0 or features[i]==-1 or features[i]==1:
+            if features[i]==-1:
+                if (i==4):
+                    warnings.append("You'll be redirected to another website!")
+                elif(i==15):
+                    warnings.append("Your personal details will be misused!")
+                elif(i==18):
+                    warnings.append("This website hides their source code!")
+                elif(i==19):
+                    warnings.append("Additional webpage is being hidden into the one that is currently shown!")
+                elif(i==21):
+                    warnings.append("Website is not recognized by a trusted authority!")
+                elif(i==22):
+                    warnings.append("This website has a very low web traffic!")
+
             print("f", i+1, " = ", features[i])
             features_model.append(features[i])
             count+=1
+    return(warnings)
+
 def encoding(data):
     mapper={1:1,0:0,-1:2}
     for i in range(len(data)):
@@ -429,14 +431,19 @@ def phishing(url):
     global features
     features.clear()
     features_model.clear()
-    extract(url)
+
+    warnings = extract(url)
+    if warnings=="Website doesn't exist!":
+        return (404,"")
     features_model=encoding(features_model)
     model=pickle.load(open('./RF','rb'))
     array=np.array(features_model)
     print(len(array))
     array=array.reshape(1,-1)
     ans=model.predict(array)
-    return ans
+    return (ans, warnings)
+
+
 #url list
 #tinyurl.com/4jtbxwtr
 #https://tinyurl.com/4jtbxwtr
