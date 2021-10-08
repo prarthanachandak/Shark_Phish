@@ -55,7 +55,7 @@ Shark Phish is a website that uses machine learning to detect if a given website
 2. KNN
 3. Random Forest
 4. Decision Tree
-5. Naive Bayes
+5. Naive Bayes<br />
 Random Forest gave the maximum accuracy of 97.47%, maximum precision of 97.88% and minimum false positive rate of 0.03.
 
 ## Features to be added:
